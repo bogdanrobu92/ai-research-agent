@@ -59,7 +59,7 @@ if "messages" not in st.session_state:
 # Setup LLM and parser
 @st.cache_resource
 def setup_agent():
-    llm = ChatOpenAI(model="gpt-4o-mini")
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
     parser = PydanticOutputParser(pydantic_object=ResearchResponse)
     
     prompt = ChatPromptTemplate.from_messages(
@@ -67,9 +67,15 @@ def setup_agent():
             (
                 "system", 
                 """
-                You are a research assistant that will help generate a research paper.
-                Answer the user query and use necessary tools to get the information.
-                After all tool operations are complete, wrap the final output in this format:\n{format_instructions}
+                You are a research assistant. Answer concisely using available tools.
+                
+                IMPORTANT RULES:
+                - Use Search tool ONCE for web information
+                - Use Wikipedia tool ONCE if needed for detailed context
+                - Do NOT call the same tool multiple times
+                - Be efficient and direct
+                
+                After gathering information, format your response as:\n{format_instructions}
                 """,
             ),
             ("placeholder", "{chat_history}"),
@@ -85,7 +91,13 @@ def setup_agent():
         tools=tools
     )
     
-    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=False)
+    agent_executor = AgentExecutor(
+        agent=agent, 
+        tools=tools, 
+        verbose=False,
+        max_iterations=5,  # Limit iterations to prevent overthinking
+        early_stopping_method="generate"  # Stop early if possible
+    )
     
     return agent_executor, parser
 
