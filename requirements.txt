@@ -1,8 +1,13 @@
-langchain
+streamlit
+python-dotenv
+langchain-core
+langchain-text-splitters
+langsmith
+pydantic
+pyyaml
+requests
+sqlalchemy
 langchain-classic
 langchain-community
 langchain-openai
-langchain-core
 wikipedia
-python-dotenv
-streamlit
