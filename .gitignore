@@ -30,6 +30,9 @@ Thumbs.db
 output.txt
 *.log
 
+# Plan files
+*.plan.md
+
 # Distribution / packaging
 dist/
 build/
