@@ -5,7 +5,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
-from langchain.callbacks.base import BaseCallbackHandler
+from langchain_core.callbacks.base import BaseCallbackHandler
 from tools import search_tool, wikipedia_tool
 import time
 
