@@ -21,7 +21,12 @@ class ResearchResponse(BaseModel):
 st.set_page_config(
     page_title="AI Research Agent",
     page_icon="🔍",
-    layout="wide"
+    layout="wide",
+    menu_items={
+        'Get Help': None,
+        'Report a bug': None,
+        'About': "# AI Research Agent\nBuilt with LangChain and Streamlit"
+    }
 )
 
 # Initialize session state for chat history
