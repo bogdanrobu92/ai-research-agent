@@ -102,29 +102,26 @@ AI Agent Tutorial/
 
 ## Deployment
 
-### Deploy to Streamlit Cloud (Free & Easy)
+### Option 1: Deploy to Hugging Face Spaces (Recommended)
 
-1. **Sign up for Streamlit Cloud:**
-   - Go to [share.streamlit.io](https://share.streamlit.io)
-   - Sign in with your GitHub account
+Hugging Face Spaces is more reliable for complex Python dependencies:
 
-2. **Deploy your app:**
-   - Click "New app"
-   - Select your repository: `bogdanrobu92/ai-research-agent`
-   - Branch: `main`
-   - Main file path: `app.py`
-   - Click "Deploy"
+1. **Create account**: Visit [huggingface.co/join](https://huggingface.co/join)
+2. **Create Space**: Go to [huggingface.co/new-space](https://huggingface.co/new-space)
+   - Name: `ai-research-agent`
+   - SDK: **Streamlit**
+   - Visibility: Public
+3. **Upload files**: Push `app.py`, `tools.py`, `requirements.txt` to your Space
+4. **Add API key**: In Space settings → Repository secrets → Add `OPENAI_API_KEY`
+5. **Done!** Your app will be at `https://huggingface.co/spaces/YOUR_USERNAME/ai-research-agent`
 
-3. **Add your OpenAI API key:**
-   - In the Streamlit Cloud dashboard, go to "App settings"
-   - Click "Secrets"
-   - Add your secret:
-   ```toml
-   OPENAI_API_KEY = "your_actual_api_key_here"
-   ```
-   - Save and the app will restart
+### Option 2: Deploy to Streamlit Cloud
 
-4. **Your app will be live at:** `https://your-app-name.streamlit.app`
+1. **Sign up**: [share.streamlit.io](https://share.streamlit.io)
+2. **Deploy**: Click "New app" → Select repo `bogdanrobu92/ai-research-agent`
+3. **Add secrets**: App settings → Secrets → Add `OPENAI_API_KEY`
+
+**Note:** If Streamlit Cloud shows "Error installing requirements" without details, use Hugging Face Spaces instead.
 
 ## License
 
