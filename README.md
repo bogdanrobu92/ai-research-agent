@@ -100,6 +100,32 @@ AI Agent Tutorial/
 - [Wikipedia API](https://www.mediawiki.org/wiki/API) - Knowledge base
 - [Pydantic](https://docs.pydantic.dev/) - Data validation
 
+## Deployment
+
+### Deploy to Streamlit Cloud (Free & Easy)
+
+1. **Sign up for Streamlit Cloud:**
+   - Go to [share.streamlit.io](https://share.streamlit.io)
+   - Sign in with your GitHub account
+
+2. **Deploy your app:**
+   - Click "New app"
+   - Select your repository: `bogdanrobu92/ai-research-agent`
+   - Branch: `main`
+   - Main file path: `app.py`
+   - Click "Deploy"
+
+3. **Add your OpenAI API key:**
+   - In the Streamlit Cloud dashboard, go to "App settings"
+   - Click "Secrets"
+   - Add your secret:
+   ```toml
+   OPENAI_API_KEY = "your_actual_api_key_here"
+   ```
+   - Save and the app will restart
+
+4. **Your app will be live at:** `https://your-app-name.streamlit.app`
+
 ## License
 
 MIT License
