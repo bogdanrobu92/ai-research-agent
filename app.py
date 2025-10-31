@@ -6,6 +6,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
 from tools import search_tool, wikipedia_tool
+import time
 
 # Load environment variables
 load_dotenv()
@@ -90,9 +91,29 @@ for message in st.session_state.messages:
                 
                 if content['tools_used']:
                     st.markdown(f"**Tools Used:** {', '.join(content['tools_used'])}")
+                
+                # Display execution time if available
+                if 'execution_time' in content:
+                    exec_time = content['execution_time']
+                    if exec_time < 60:
+                        st.caption(f"⏱️ Response time: {exec_time:.2f} seconds")
+                    else:
+                        minutes = int(exec_time // 60)
+                        seconds = exec_time % 60
+                        st.caption(f"⏱️ Response time: {minutes}m {seconds:.2f}s")
             else:
                 # Display plain text response
                 st.markdown(content)
+                
+                # Check if execution_time was stored separately for plain text
+                if 'execution_time' in message:
+                    exec_time = message['execution_time']
+                    if exec_time < 60:
+                        st.caption(f"⏱️ Response time: {exec_time:.2f} seconds")
+                    else:
+                        minutes = int(exec_time // 60)
+                        seconds = exec_time % 60
+                        st.caption(f"⏱️ Response time: {minutes}m {seconds:.2f}s")
         else:
             st.markdown(message["content"])
 
@@ -108,9 +129,15 @@ if prompt := st.chat_input("Ask me anything..."):
     # Display assistant response
     with st.chat_message("assistant"):
         with st.spinner("Researching..."):
+            # Start timing
+            start_time = time.time()
+            
             try:
                 # Invoke agent
                 raw_response = agent_executor.invoke({"query": prompt})
+                
+                # Calculate execution time
+                execution_time = time.time() - start_time
                 
                 # Try to parse as structured response
                 try:
@@ -128,6 +155,14 @@ if prompt := st.chat_input("Ask me anything..."):
                     if structured_response.tools_used:
                         st.markdown(f"**Tools Used:** {', '.join(structured_response.tools_used)}")
                     
+                    # Display execution time
+                    if execution_time < 60:
+                        st.caption(f"⏱️ Response time: {execution_time:.2f} seconds")
+                    else:
+                        minutes = int(execution_time // 60)
+                        seconds = execution_time % 60
+                        st.caption(f"⏱️ Response time: {minutes}m {seconds:.2f}s")
+                    
                     # Add assistant message to chat history
                     st.session_state.messages.append({
                         "role": "assistant",
@@ -135,7 +170,8 @@ if prompt := st.chat_input("Ask me anything..."):
                             "topic": structured_response.topic,
                             "summary": structured_response.summary,
                             "sources": structured_response.sources,
-                            "tools_used": structured_response.tools_used
+                            "tools_used": structured_response.tools_used,
+                            "execution_time": execution_time
                         }
                     })
                     
@@ -144,14 +180,24 @@ if prompt := st.chat_input("Ask me anything..."):
                     output_text = raw_response.get("output", "")
                     st.markdown(output_text)
                     
+                    # Display execution time for plain text responses too
+                    if execution_time < 60:
+                        st.caption(f"⏱️ Response time: {execution_time:.2f} seconds")
+                    else:
+                        minutes = int(execution_time // 60)
+                        seconds = execution_time % 60
+                        st.caption(f"⏱️ Response time: {minutes}m {seconds:.2f}s")
+                    
                     # Add plain text to chat history
                     st.session_state.messages.append({
                         "role": "assistant",
-                        "content": output_text
+                        "content": output_text,
+                        "execution_time": execution_time
                     })
                 
             except Exception as e:
-                st.error(f"Error: {str(e)}")
+                execution_time = time.time() - start_time
+                st.error(f"Error: {str(e)} (after {execution_time:.2f}s)")
                 if 'raw_response' in locals():
                     st.markdown("**Raw Response:**")
                     st.json(raw_response)
