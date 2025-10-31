@@ -10,3 +10,7 @@ headless = true
 port = 8501
 enableCORS = false
 
+[client]
+toolbarMode = "minimal"
+showErrorDetails = false
+
