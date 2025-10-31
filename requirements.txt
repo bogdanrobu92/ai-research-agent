@@ -1,4 +1,5 @@
 langchain
+langchain-classic
 wikipedia
 langchain-community
 langchain-openai
