@@ -71,18 +71,23 @@ st.markdown("Ask me anything and I'll research it for you using web search and W
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         if message["role"] == "assistant":
-            # Display structured response
-            data = message["content"]
-            st.markdown(f"**Topic:** {data['topic']}")
-            st.markdown(f"**Summary:**\n{data['summary']}")
-            
-            if data['sources']:
-                st.markdown("**Sources:**")
-                for source in data['sources']:
-                    st.markdown(f"- {source}")
-            
-            if data['tools_used']:
-                st.markdown(f"**Tools Used:** {', '.join(data['tools_used'])}")
+            # Check if content is structured or plain text
+            content = message["content"]
+            if isinstance(content, dict):
+                # Display structured response
+                st.markdown(f"**Topic:** {content['topic']}")
+                st.markdown(f"**Summary:**\n{content['summary']}")
+                
+                if content['sources']:
+                    st.markdown("**Sources:**")
+                    for source in content['sources']:
+                        st.markdown(f"- {source}")
+                
+                if content['tools_used']:
+                    st.markdown(f"**Tools Used:** {', '.join(content['tools_used'])}")
+            else:
+                # Display plain text response
+                st.markdown(content)
         else:
             st.markdown(message["content"])
 
@@ -102,36 +107,49 @@ if prompt := st.chat_input("Ask me anything..."):
                 # Invoke agent
                 raw_response = agent_executor.invoke({"query": prompt})
                 
-                # Parse response
-                structured_response = parser.parse(raw_response["output"])
-                
-                # Display structured response
-                st.markdown(f"**Topic:** {structured_response.topic}")
-                st.markdown(f"**Summary:**\n{structured_response.summary}")
-                
-                if structured_response.sources:
-                    st.markdown("**Sources:**")
-                    for source in structured_response.sources:
-                        st.markdown(f"- {source}")
-                
-                if structured_response.tools_used:
-                    st.markdown(f"**Tools Used:** {', '.join(structured_response.tools_used)}")
-                
-                # Add assistant message to chat history
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": {
-                        "topic": structured_response.topic,
-                        "summary": structured_response.summary,
-                        "sources": structured_response.sources,
-                        "tools_used": structured_response.tools_used
-                    }
-                })
+                # Try to parse as structured response
+                try:
+                    structured_response = parser.parse(raw_response["output"])
+                    
+                    # Display structured response
+                    st.markdown(f"**Topic:** {structured_response.topic}")
+                    st.markdown(f"**Summary:**\n{structured_response.summary}")
+                    
+                    if structured_response.sources:
+                        st.markdown("**Sources:**")
+                        for source in structured_response.sources:
+                            st.markdown(f"- {source}")
+                    
+                    if structured_response.tools_used:
+                        st.markdown(f"**Tools Used:** {', '.join(structured_response.tools_used)}")
+                    
+                    # Add assistant message to chat history
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": {
+                            "topic": structured_response.topic,
+                            "summary": structured_response.summary,
+                            "sources": structured_response.sources,
+                            "tools_used": structured_response.tools_used
+                        }
+                    })
+                    
+                except Exception:
+                    # If parsing fails, display the raw output as plain text
+                    output_text = raw_response.get("output", "")
+                    st.markdown(output_text)
+                    
+                    # Add plain text to chat history
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": output_text
+                    })
                 
             except Exception as e:
                 st.error(f"Error: {str(e)}")
-                st.markdown("**Raw Response:**")
-                st.json(raw_response)
+                if 'raw_response' in locals():
+                    st.markdown("**Raw Response:**")
+                    st.json(raw_response)
 
 # Sidebar with info
 with st.sidebar:
