@@ -5,6 +5,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
+from langchain.callbacks.base import BaseCallbackHandler
 from tools import search_tool, wikipedia_tool
 import time
 
@@ -17,6 +18,27 @@ class ResearchResponse(BaseModel):
     summary: str
     sources: list[str]
     tools_used: list[str]
+
+# Custom callback handler to track tool execution times
+class TimingCallbackHandler(BaseCallbackHandler):
+    def __init__(self):
+        self.tool_times = {}
+        self.current_tool = None
+        self.current_tool_start = None
+    
+    def on_tool_start(self, serialized, input_str, **kwargs):
+        tool_name = serialized.get("name", "Unknown")
+        self.current_tool = tool_name
+        self.current_tool_start = time.time()
+    
+    def on_tool_end(self, output, **kwargs):
+        if self.current_tool and self.current_tool_start:
+            elapsed = time.time() - self.current_tool_start
+            if self.current_tool not in self.tool_times:
+                self.tool_times[self.current_tool] = []
+            self.tool_times[self.current_tool].append(elapsed)
+        self.current_tool = None
+        self.current_tool_start = None
 
 # Configure Streamlit page
 st.set_page_config(
@@ -92,8 +114,31 @@ for message in st.session_state.messages:
                 if content['tools_used']:
                     st.markdown(f"**Tools Used:** {', '.join(content['tools_used'])}")
                 
-                # Display execution time if available
-                if 'execution_time' in content:
+                # Display timing breakdown if available
+                if 'timing_breakdown' in content:
+                    breakdown = content['timing_breakdown']
+                    st.markdown("---")
+                    st.markdown("**⏱️ Performance Breakdown:**")
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        if breakdown.get('tool_times'):
+                            for tool_name, times in breakdown['tool_times'].items():
+                                total_time = sum(times)
+                                calls = len(times)
+                                st.caption(f"🔧 {tool_name}: {total_time:.2f}s ({calls} call{'s' if calls > 1 else ''})")
+                        
+                        if 'llm_time' in breakdown:
+                            st.caption(f"🤖 LLM Processing: {breakdown['llm_time']:.2f}s")
+                    
+                    with col2:
+                        if 'parse_time' in breakdown:
+                            st.caption(f"📊 Parsing: {breakdown['parse_time']:.3f}s")
+                        if 'total_time' in breakdown:
+                            st.caption(f"⏱️ **Total: {breakdown['total_time']:.2f}s**")
+                elif 'execution_time' in content:
+                    # Fallback for old messages without breakdown
                     exec_time = content['execution_time']
                     if exec_time < 60:
                         st.caption(f"⏱️ Response time: {exec_time:.2f} seconds")
@@ -132,16 +177,26 @@ if prompt := st.chat_input("Ask me anything..."):
             # Start timing
             start_time = time.time()
             
+            # Create timing callback
+            timing_callback = TimingCallbackHandler()
+            
             try:
-                # Invoke agent
-                raw_response = agent_executor.invoke({"query": prompt})
+                # Invoke agent with callback
+                invoke_start = time.time()
+                raw_response = agent_executor.invoke(
+                    {"query": prompt},
+                    {"callbacks": [timing_callback]}
+                )
+                agent_time = time.time() - invoke_start
                 
                 # Calculate execution time
                 execution_time = time.time() - start_time
                 
                 # Try to parse as structured response
                 try:
+                    parse_start = time.time()
                     structured_response = parser.parse(raw_response["output"])
+                    parse_time = time.time() - parse_start
                     
                     # Display structured response
                     st.markdown(f"**Topic:** {structured_response.topic}")
@@ -155,15 +210,30 @@ if prompt := st.chat_input("Ask me anything..."):
                     if structured_response.tools_used:
                         st.markdown(f"**Tools Used:** {', '.join(structured_response.tools_used)}")
                     
-                    # Display execution time
-                    if execution_time < 60:
-                        st.caption(f"⏱️ Response time: {execution_time:.2f} seconds")
-                    else:
-                        minutes = int(execution_time // 60)
-                        seconds = execution_time % 60
-                        st.caption(f"⏱️ Response time: {minutes}m {seconds:.2f}s")
+                    # Calculate time breakdown
+                    total_tool_time = sum(sum(times) for times in timing_callback.tool_times.values())
+                    llm_processing_time = agent_time - total_tool_time
                     
-                    # Add assistant message to chat history
+                    # Display detailed timing breakdown
+                    st.markdown("---")
+                    st.markdown("**⏱️ Performance Breakdown:**")
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        if timing_callback.tool_times:
+                            for tool_name, times in timing_callback.tool_times.items():
+                                total_time = sum(times)
+                                calls = len(times)
+                                st.caption(f"🔧 {tool_name}: {total_time:.2f}s ({calls} call{'s' if calls > 1 else ''})")
+                        
+                        st.caption(f"🤖 LLM Processing: {llm_processing_time:.2f}s")
+                    
+                    with col2:
+                        st.caption(f"📊 Parsing: {parse_time:.3f}s")
+                        st.caption(f"⏱️ **Total: {execution_time:.2f}s**")
+                    
+                    # Add assistant message to chat history with timing details
                     st.session_state.messages.append({
                         "role": "assistant",
                         "content": {
@@ -171,7 +241,13 @@ if prompt := st.chat_input("Ask me anything..."):
                             "summary": structured_response.summary,
                             "sources": structured_response.sources,
                             "tools_used": structured_response.tools_used,
-                            "execution_time": execution_time
+                            "execution_time": execution_time,
+                            "timing_breakdown": {
+                                "tool_times": dict(timing_callback.tool_times),
+                                "llm_time": llm_processing_time,
+                                "parse_time": parse_time,
+                                "total_time": execution_time
+                            }
                         }
                     })
                     
@@ -207,9 +283,9 @@ with st.sidebar:
     st.header("About")
     st.markdown("""
     This AI Research Agent uses:
-    - 🔍 **DuckDuckGo Search** for web information
-    - 📚 **Wikipedia** for detailed knowledge
-    - 🤖 **GPT-4o-mini** for intelligent responses
+    - 🔍 DuckDuckGo Search: for web information
+    - 📚 Wikipedia: for detailed knowledge
+    - 🤖 GPT-4o-mini: for intelligent responses
     
     Your chat history persists during this session.
     """)
